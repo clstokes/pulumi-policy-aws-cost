@@ -1,6 +1,6 @@
 # pulumi-policy-aws-cost
 
-> :information_source: This proof-of-concept currently only works for the `us-east-1` AWS Region.
+> :information_source: This proof-of-concept currently only works Linux EC2 instances in the `us-east-1` AWS Region.
 
 ## Usage
 
