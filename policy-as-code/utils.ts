@@ -1,14 +1,4 @@
 import { Resource, } from "@pulumi/pulumi";
-import * as fs from "fs";
-
-export const getPricingData = function (): (any) {
-    const localFilePath = "./../resources/offers-ec2-us-east-1.json";
-    if (!fs.existsSync(localFilePath)) {
-        throw new Error("Local pricing file is missing - run `make bootstrap` and try again. Exiting...")
-    }
-    const localPricingData = fs.readFileSync(localFilePath).toString();
-    return JSON.parse(localPricingData);
-}
 
 export const formatAmount = function (amount: number): (string) {
     return '$' + amount.toFixed(2);

@@ -4,7 +4,8 @@
     "dependencies": {
         "@pulumi/aws": "latest",
         "@pulumi/policy": "latest",
-        "@pulumi/pulumi": "latest"
+        "@pulumi/pulumi": "latest",
+        "aws-sdk": "^2.587.0"
     },
     "devDependencies": {
         "@types/node": "latest",
