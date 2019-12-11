@@ -4,8 +4,9 @@
 
 ## Usage
 
-1. This example uses the AWS Bulk API for pricing data. Currently it expects this file to already be 
-downloaded. To download the pricing data for `us-east-1` run `make bootstrap`:
+1. This example uses the [Bulk AWS Price List API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-ppslong.html) 
+for pricing data. Currently it expects this file to already be downloaded. To download the pricing data for `us-east-1` 
+run `make bootstrap`:
 
     ```
     % make bootstrap
