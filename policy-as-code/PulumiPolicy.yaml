@@ -1,3 +1,2 @@
-name: policies-pulumi-policy-aws-cost
+description: A minimal Policy Pack for AWS using TypeScript.
 runtime: nodejs
-description: A minimal AWS TypeScript Pulumi program

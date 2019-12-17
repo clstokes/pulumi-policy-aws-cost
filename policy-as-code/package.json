@@ -1,13 +1,13 @@
 {
-    "name": "aws-policies",
-    "version": "0.1.0",
+    "name": "aws-typescript",
+    "version": "0.0.1",
     "dependencies": {
-        "@pulumi/aws": "latest",
+        "@pulumi/aws": "^1.0.0",
         "@pulumi/policy": "latest",
-        "@pulumi/pulumi": "latest"
+        "@pulumi/pulumi": "^1.0.0",
+        "zlib": "^1.0.5"
     },
     "devDependencies": {
-        "@types/node": "latest",
-        "tslint": "latest"
+        "@types/node": "^8.0.0"
     }
 }

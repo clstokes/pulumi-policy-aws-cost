@@ -1,6 +1,9 @@
 # pulumi-policy-aws-cost
 
-> :information_source: This proof-of-concept currently only works Linux EC2 instances in the `us-east-1` AWS Region.
+This Pulumi CrossGuard policy pack demonstrates a number of policy types for security and cost best 
+practices. _Note: The `instance-cost-estimate` policy currently only uses pricing data for Linux EC2 instances 
+in us-east-1._
+
 
 ## Usage
 
@@ -24,35 +27,65 @@ run `make bootstrap`:
 1. Run a `pulumi up` using the `--policy-pack` argument:
 
     ```
-    % pulumi preview --policy-pack policy-as-code 
+    % pulumi preview --policy-pack policy-as-code
     Previewing update (dev):
 
-        Type                                    Name                        Plan       Info
-    +   pulumi:pulumi:Stack                     pulumi-policy-aws-cost-dev  create     2 errors; 4 messages
-    +   ├─ awsx:x:ec2:Vpc                       web-vpc                     create     
-    +   │  ├─ awsx:x:ec2:Subnet                 web-vpc-public-0            create     
-    +   │  │  ├─ aws:ec2:RouteTable             web-vpc-public-0            create     
-    +   │  │  ├─ aws:ec2:Subnet                 web-vpc-public-0            create     
-    +   │  │  ├─ aws:ec2:Route                  web-vpc-public-0-ig         create     
-    +   │  │  └─ aws:ec2:RouteTableAssociation  web-vpc-public-0            create     
-    +   │  ├─ awsx:x:ec2:InternetGateway        web-vpc                     create     
-    +   │  │  └─ aws:ec2:InternetGateway        web-vpc                     create     
-    +   │  └─ aws:ec2:Vpc                       web-vpc                     create     
-    +   ├─ aws:ec2:SecurityGroup                web-firewall                create     
-    +   ├─ aws:ec2:Instance                     web-server-2                create     
-    +   ├─ aws:ec2:Instance                     web-server-1                create     
-    +   └─ aws:ec2:Instance                     web-server-0                create     
-    
+        Type                       Name                        Plan       Info
+    +   pulumi:pulumi:Stack        pulumi-policy-aws-cost-dev  create     2 errors
+    +   ├─ aws:ec2:Vpc             demo                        create
+    +   │  ├─ aws:ec2:Subnet       demo-0                      create     1 error
+    +   │  │  └─ aws:ec2:Instance  demo-0                      create     1 error
+    +   │  ├─ aws:ec2:Subnet       demo-3                      create     1 error
+    +   │  │  └─ aws:ec2:Instance  demo-3                      create     1 error
+    +   │  ├─ aws:ec2:Subnet       demo-2                      create     1 error
+    +   │  │  └─ aws:ec2:Instance  demo-2                      create     1 error
+    +   │  └─ aws:ec2:Subnet       demo-1                      create     1 error
+    +   │     └─ aws:ec2:Instance  demo-1                      create     1 error
+    +   └─ aws:s3:Bucket           demo                        create     2 errors
+
     Diagnostics:
     pulumi:pulumi:Stack (pulumi-policy-aws-cost-dev):
-        Monthly cost of [t2.medium] is [$33.408].
-        Monthly cost of [m5a.large] is [$61.92].
-        Monthly cost of [g3.4xlarge] is [$820.8].
-        Estimated monthly cost of [3] instances is [$916.13]
-    
         mandatory: [instance-cost-estimate] Limit instance costs to $500.
-        Estimated monthly cost [$916.13] exceeds [$500.00].
+        Estimated monthly cost [$650.88] exceeds [$500.00].
         error: preview failed
-    
-    Permalink: https://app.pulumi.com/clstokes/pulumi-policy-aws-cost/dev/previews/6a1e3273-7803-45ca-a936-4cb7d265be74
+
+    aws:s3:Bucket (demo):
+        mandatory: [s3-bucket-public-read-prohibited] S3 bucket must not be publicly accessible.
+        Bucket ACL must not be set to 'public-read' or 'public-read-write'.
+        mandatory: [s3-static-website-prohibited] No static website hosting.
+        Website hosting must not be enabled.
+
+    aws:ec2:Subnet (demo-1):
+        mandatory: [subnet-sizing] Subnets must be /24 or smaller.
+        Address space [10.0.1.0/22] is too large. Must be [/24] or smaller.
+
+    aws:ec2:Instance (demo-1):
+        mandatory: [instance-required-tags] Instances must have required tags.
+        Tag [Name] must be defined.
+
+    aws:ec2:Instance (demo-3):
+        mandatory: [instance-required-tags] Instances must have required tags.
+        Tag [Name] must be defined.
+
+    aws:ec2:Instance (demo-2):
+        mandatory: [instance-required-tags] Instances must have required tags.
+        Tag [Name] must be defined.
+
+    aws:ec2:Subnet (demo-0):
+        mandatory: [subnet-sizing] Subnets must be /24 or smaller.
+        Address space [10.0.0.0/22] is too large. Must be [/24] or smaller.
+
+    aws:ec2:Subnet (demo-3):
+        mandatory: [subnet-sizing] Subnets must be /24 or smaller.
+        Address space [10.0.3.0/22] is too large. Must be [/24] or smaller.
+
+    aws:ec2:Subnet (demo-2):
+        mandatory: [subnet-sizing] Subnets must be /24 or smaller.
+        Address space [10.0.2.0/22] is too large. Must be [/24] or smaller.
+
+    aws:ec2:Instance (demo-0):
+        mandatory: [instance-required-tags] Instances must have required tags.
+        Tag [Name] must be defined.
+
+    Permalink: https://app.pulumi.com/clstokes/pulumi-policy-aws-cost/dev/previews/75c29228-1623-4323-bd96-e228ca211fdd
     ```
