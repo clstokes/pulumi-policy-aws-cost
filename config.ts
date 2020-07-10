@@ -12,7 +12,7 @@ export const BASE_TAGS = {
 };
 
 // export const zoneIds = ["usw2-az1", "usw2-az2", "usw2-az3", "usw2-az4"]; // us-west-2
-export const zoneIds = aws.getAvailabilityZones().zoneIds;
+export const zones = aws.getAvailabilityZones();
 
 // export const amiId = "ami-0a7d051a1c4b54f65"; // us-west-2
 export const amiId = aws.getAmi({
