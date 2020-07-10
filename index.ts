@@ -3,6 +3,6 @@ import * as compute from "./compute";
 
 export const bucketName = s3.bucketName;
 
-export const vpcId = compute.vpcId;
-export const subnetIds = compute.subnetIds;
-export const instanceIds = compute.instanceIds;
+export const vpcId = compute.vpc.id;
+export const subnetId = compute.subnet.id;
+export const instanceIds = compute.instances.map(i => i.id);

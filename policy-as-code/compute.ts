@@ -1,18 +1,28 @@
 import * as aws from "@pulumi/aws";
-import { validateTypedResource, Policies, } from "@pulumi/policy";
-import { isType, requireTags, getMonthlyOnDemandPrice, formatAmount, } from "./utils";
-import { maxSubnetPrefixLength, maxMonthlyCost } from "./config";
+import { validateResourceOfType, Policies, } from "@pulumi/policy";
+
+import { requireTags, } from "./utils";
 
 export const computePolicies: Policies = [
     {
         name: "subnet-sizing",
-        description: `Subnets must be /${maxSubnetPrefixLength} or smaller.`,
+        description: `Subnets CIDR block size is too large.`,
         enforcementLevel: "mandatory",
-        validateResource: validateTypedResource(aws.ec2.Subnet, (subnet, _, reportViolation) => {
-            const prefixLength = subnet.cidrBlock.split("/");
+        configSchema: {
+            properties: {
+                maxSubnetPrefixLength: {
+                    type: "number",
+                    default: 22,
+                },
+            },
+        },
+        validateResource: validateResourceOfType(aws.ec2.Subnet, (resource, args, reportViolation) => {
+            const { maxSubnetPrefixLength } = args.getConfig<{ maxSubnetPrefixLength: number }>();
+            
+            const prefixLength = resource.cidrBlock.split("/");
             const prefixLengthAsNumber = Number.parseInt(prefixLength[1]);
             if (prefixLengthAsNumber < maxSubnetPrefixLength) {
-                reportViolation(`Address space [${subnet.cidrBlock}] is too large. Must be [/${maxSubnetPrefixLength}] or smaller.`)
+                reportViolation(`Address space [${resource.cidrBlock}] is too large. Must be [/${maxSubnetPrefixLength}] or smaller.`)
             }
         }),
     },
@@ -20,27 +30,8 @@ export const computePolicies: Policies = [
         name: "instance-required-tags",
         description: "Instances must have required tags.",
         enforcementLevel: "mandatory",
-        validateResource: validateTypedResource(aws.ec2.Instance, (instance, _, reportViolation) => {
-            requireTags(instance.tags, ["Name", "BusinessUnit", "CostCenter",], reportViolation);
+        validateResource: validateResourceOfType(aws.ec2.Instance, (resource, _, reportViolation) => {
+            requireTags(resource.tags, ["Name", "BusinessUnit", "CostCenter",], reportViolation);
         }),
-    },
-    {
-        name: "instance-cost-estimate",
-        description: `Limit instance costs to $${maxMonthlyCost}.`,
-        enforcementLevel: "mandatory",
-        validateStack: (args, reportViolation) => {
-            // Find _all_ instances
-            const instances = args.resources.filter(it => isType(it.type, aws.ec2.Instance));
-
-            // Aggregate costs
-            let totalMonthlyAmount = 0;
-            instances.forEach(it => {
-                totalMonthlyAmount += getMonthlyOnDemandPrice(it.props.instanceType);
-            });
-
-            if (totalMonthlyAmount > maxMonthlyCost) {
-                reportViolation(`Estimated monthly cost [${formatAmount(totalMonthlyAmount)}] exceeds [${formatAmount(maxMonthlyCost)}].`);
-            }
-        },
     },
 ];

@@ -18,7 +18,7 @@ export const isType = function (actual: string, expected: any): boolean {
  * Cost-related helpers
  */
 export const getPricingData = function (): (any) {
-    const localFilePath = "./offers-ec2-us-east-1.json.gz";
+    const localFilePath = "./resources/offers-ec2-us-east-1.json.gz";
     if (!fs.existsSync(localFilePath)) {
         console.log("Local pricing file is missing - run `make bootstrap` and try again. Exiting...");
         throw new Error();
