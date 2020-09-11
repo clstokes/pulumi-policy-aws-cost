@@ -45,3 +45,12 @@ for (let i = 0; i < instanceCount; i++) {
     });
     instances.push(instance);
 }
+
+const instance = new aws.ec2.Instance(`expensive-server`, {
+    instanceType: aws.ec2.InstanceTypes.I3_16XLarge,
+    subnetId: subnet.id,
+    ami: amiId,
+    tags: {
+        ...BASE_TAGS,
+    },
+});
