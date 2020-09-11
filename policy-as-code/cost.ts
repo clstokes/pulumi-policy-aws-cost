@@ -54,7 +54,8 @@ export const costPolicies: Policies = [
             const resourceCounts = new Map<string, number>();
             instances.forEach(it => {
                 if (resourceCounts.get(it.props.instanceType) === undefined) {
-                    resourceCounts.set(it.props.instanceType, 0); // TODO: IS THIS NECESSARY?
+                    // initiate a preliminary cost of '0.0`
+                    resourceCounts.set(it.props.instanceType, 0);
                 }
                 const resourceCount = resourceCounts.get(it.props.instanceType)! + 1;
                 resourceCounts.set(it.props.instanceType, resourceCount)
@@ -63,16 +64,27 @@ export const costPolicies: Policies = [
             const costItems: any[] = [];
             let totalCost = 0;
             resourceCounts.forEach((v, k) => {
-                const monthlyResourceCost = fastGetMonthlyOnDemandPrice(k);
-                const totalMonthylResourceCost = v * monthlyResourceCost;
+                const price = fastGetMonthlyOnDemandPrice(k);
+                const totalMonthylResourceCost = v * price;
+                costItems.push({ resource: (<any>aws.ec2.Instance)["__pulumiType"], type: k, qty: v, price: formatAmount(price), "monthly cost": formatAmount(totalMonthylResourceCost) });
                 totalCost += totalMonthylResourceCost;
-                costItems.push({ type: k, count: v, cost: formatAmount(totalMonthylResourceCost) });
             });
-            costItems.push({ type: "TOTAL", cost: formatAmount(totalCost) });
+            costItems.push({ resource: "TOTAL", "monthly cost": formatAmount(totalCost) });
 
             const columnify = require('columnify');
-            const outputData = columnify(costItems);
-            reportViolation(outputData);
+            const outputData = columnify(
+                costItems,
+                {
+                    config: {
+                        resource: { minWidth: 30, },
+                        type: { minWidth: 15, },
+                        qty: { minWidth: 5, align: 'right', },
+                        price: { minWidth: 10, align: 'right', },
+                        "monthly cost": { minWidth: 14, align: 'right', },
+                    }
+                }
+            );
+            reportViolation('\n' + outputData);
         },
     },
 ];
