@@ -58,5 +58,5 @@ export const getMonthlyOnDemandPrice = function (instanceType: string): (number)
 }
 
 export const formatAmount = function (amount: number): (string) {
-    return '$' + amount.toFixed(2);
+    return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

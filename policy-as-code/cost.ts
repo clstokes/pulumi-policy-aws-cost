@@ -51,21 +51,28 @@ export const costPolicies: Policies = [
             const instances = args.resources.filter(it => isType(it.type, aws.ec2.Instance));
 
             // Aggregate costs
-            const aggregateCosts = new Map<string, number>();
+            const resourceCounts = new Map<string, number>();
             instances.forEach(it => {
-                if (aggregateCosts.get(it.props.instanceType) === undefined) {
-                    aggregateCosts.set(it.props.instanceType, 0.0); // IS THIS NECESSARY?
+                if (resourceCounts.get(it.props.instanceType) === undefined) {
+                    resourceCounts.set(it.props.instanceType, 0); // TODO: IS THIS NECESSARY?
                 }
-                const monthlyInstanceCost = fastGetMonthlyOnDemandPrice(it.props.instanceType);
-                const aggregateInstanceCost = monthlyInstanceCost + aggregateCosts.get(it.props.instanceType)!;
-                aggregateCosts.set(it.props.instanceType, aggregateInstanceCost)
+                const resourceCount = resourceCounts.get(it.props.instanceType)! + 1;
+                resourceCounts.set(it.props.instanceType, resourceCount)
             });
 
-            const costLines: string[] = [];
-            aggregateCosts.forEach((k, v) => {
-                costLines.push(`${k} = ${v}`);
+            const costItems: any[] = [];
+            let totalCost = 0;
+            resourceCounts.forEach((v, k) => {
+                const monthlyResourceCost = fastGetMonthlyOnDemandPrice(k);
+                const totalMonthylResourceCost = v * monthlyResourceCost;
+                totalCost += totalMonthylResourceCost;
+                costItems.push({ type: k, count: v, cost: formatAmount(totalMonthylResourceCost) });
             });
-            reportViolation(costLines.join('\n'));
+            costItems.push({ type: "TOTAL", cost: formatAmount(totalCost) });
+
+            const columnify = require('columnify');
+            const outputData = columnify(costItems);
+            reportViolation(outputData);
         },
     },
 ];
