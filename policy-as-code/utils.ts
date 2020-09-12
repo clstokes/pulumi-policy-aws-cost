@@ -1,6 +1,10 @@
+import * as pulumi from "@pulumi/pulumi";
 import { ReportViolation, } from "@pulumi/policy";
 import * as fs from "fs";
 import * as zlib from "zlib";
+import * as path from "path";
+
+const memoize = require("fast-memoize");
 
 export const requireTags = function (tags: any, tagsToCheck: string[], reportViolation: ReportViolation) {
     for (let tagName of tagsToCheck) {
@@ -17,7 +21,7 @@ export const isType = function (actual: string, expected: any): boolean {
 /**
  * Cost-related helpers
  */
-export const getPricingData = function (): (any) {
+const getPricingData = function (): (any) {
     const localFilePath = "./resources/offers-ec2-us-east-1.json.gz";
     if (!fs.existsSync(localFilePath)) {
         console.log("Local pricing file is missing - run `make bootstrap` and try again. Exiting...");
@@ -28,7 +32,7 @@ export const getPricingData = function (): (any) {
     return JSON.parse(localPricingData.toString());
 }
 
-export const getMonthlyOnDemandPrice = function (instanceType: string): (number) {
+const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number) {
     const pricingData: any = getPricingData();
     const pricingDataProducts: any = pricingData["products"];
     const pricingDataTermsOnDemand: any = pricingData["terms"]["OnDemand"];
@@ -53,10 +57,31 @@ export const getMonthlyOnDemandPrice = function (instanceType: string): (number)
 
     const pricePerHour = Number(priceDimension["pricePerUnit"]["USD"]);
     const costPerMonth = pricePerHour * 24 * 30;
-    // console.log(`Monthly cost of [${instanceType}] is [$${costPerMonth}].`); // TODO: Remove
+
     return costPerMonth;
 }
 
-export const formatAmount = function (amount: number): (string) {
+// speed things up - for 20 instances this reduces time from ~30s to ~10s
+export const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
+
+export const formatAmount = function (amount: string | number): (string) {
+    if (amount == '') {
+        return ''; // must return a string otherwise colunify through a "Cannot read property 'trim' of undefined"
+    }
+    if (typeof amount == 'string') {
+        amount = parseInt(amount);
+    }
+
     return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export const writeFile = function (filePath: string, fileData: string) {
+    const absoluteFilePath = path.resolve(filePath);
+    pulumi.log.info(`Writing file to [${absoluteFilePath}]`);
+    fs.writeFileSync(absoluteFilePath, fileData);
+    return;
+};
+
+export const getPulumiType = function (resource: any): (string) {
+    return (<any>resource)["__pulumiType"];
 }

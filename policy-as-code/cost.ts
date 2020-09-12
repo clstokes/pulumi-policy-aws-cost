@@ -1,14 +1,15 @@
-import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import { Policies, validateResourceOfType, } from "@pulumi/policy";
 
-import { isType, getMonthlyOnDemandPrice, formatAmount, } from "./utils";
+import * as os from "os";
+
+import { isType, getPulumiType, fastGetMonthlyInstanceOnDemandPrice, formatAmount, } from "./utils";
 
 export const costPolicies: Policies = [
     {
         name: "budget-limit",
         description: `Estimated costs must not exceed monthly budget.`,
-        enforcementLevel: "mandatory",
+        enforcementLevel: "advisory",
         configSchema: {
             properties: {
                 maxMonthlyCost: {
@@ -18,10 +19,6 @@ export const costPolicies: Policies = [
             },
         },
         validateStack: (args, reportViolation) => {
-            // speed things up - for 20 instances this reduces time from ~30s to ~10s. Moving this 'globally' within the file seems to have no effect.
-            const memoize = require('fast-memoize');
-            const fastGetMonthlyOnDemandPrice = memoize(getMonthlyOnDemandPrice);
-
             const { maxMonthlyCost } = args.getConfig<{ maxMonthlyCost: number }>();
 
             // Find _all_ instances
@@ -30,7 +27,7 @@ export const costPolicies: Policies = [
             // Aggregate costs
             let totalMonthlyAmount = 0;
             instances.forEach(it => {
-                totalMonthlyAmount += fastGetMonthlyOnDemandPrice(it.props.instanceType);
+                totalMonthlyAmount += fastGetMonthlyInstanceOnDemandPrice(it.props.instanceType);
             });
 
             if (totalMonthlyAmount > maxMonthlyCost) {
@@ -43,10 +40,6 @@ export const costPolicies: Policies = [
         description: `Estimated instance costs based on instance type.`,
         enforcementLevel: "advisory",
         validateStack: (args, reportViolation) => {
-            // speed things up - for 20 instances this reduces time from ~30s to ~10s. Moving this 'globally' within the file seems to have no effect.
-            const memoize = require('fast-memoize');
-            const fastGetMonthlyOnDemandPrice = memoize(getMonthlyOnDemandPrice);
-
             // Find _all_ instances
             const instances = args.resources.filter(it => isType(it.type, aws.ec2.Instance));
 
@@ -64,27 +57,36 @@ export const costPolicies: Policies = [
             const costItems: any[] = [];
             let totalCost = 0;
             resourceCounts.forEach((v, k) => {
-                const price = fastGetMonthlyOnDemandPrice(k);
+                const price = fastGetMonthlyInstanceOnDemandPrice(k);
                 const totalMonthylResourceCost = v * price;
-                costItems.push({ resource: (<any>aws.ec2.Instance)["__pulumiType"], type: k, qty: v, price: formatAmount(price), "monthly cost": formatAmount(totalMonthylResourceCost) });
+                costItems.push({ resource: getPulumiType(aws.ec2.Instance), type: k, qty: v, price: price, "monthly cost": totalMonthylResourceCost });
                 totalCost += totalMonthylResourceCost;
             });
-            costItems.push({ resource: "TOTAL", "monthly cost": formatAmount(totalCost) });
+            costItems.push({ resource: "TOTAL", "monthly cost": totalCost });
 
             const columnify = require('columnify');
-            const outputData = columnify(
-                costItems,
-                {
-                    config: {
-                        resource: { minWidth: 30, },
-                        type: { minWidth: 15, },
-                        qty: { minWidth: 5, align: 'right', },
-                        price: { minWidth: 10, align: 'right', },
-                        "monthly cost": { minWidth: 14, align: 'right', },
-                    }
-                }
-            );
+            const outputData = columnify(costItems, columnifyConfig);
             reportViolation('\n' + outputData);
+
+            // writeFile(`${os.homedir}/cost-${new Date().toISOString()}.json`, JSON.stringify(costItems));
         },
     },
 ];
+
+const columnifyConfig = {
+    config: {
+        resource: { minWidth: 30, },
+        type: { minWidth: 15, },
+        qty: { minWidth: 5, align: 'right', },
+        price: {
+            minWidth: 14,
+            align: 'right',
+            dataTransform: formatAmount,
+        },
+        "monthly cost": {
+            minWidth: 14,
+            align: 'right',
+            dataTransform: formatAmount,
+        },
+    }
+};
