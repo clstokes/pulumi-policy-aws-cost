@@ -65,11 +65,12 @@ const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number
 export const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
 
 export const formatAmount = function (amount: string | number): (string) {
-    if (amount == '') {
-        return ''; // must return a string otherwise colunify through a "Cannot read property 'trim' of undefined"
-    }
     if (typeof amount == 'string') {
         amount = parseInt(amount);
+    }
+
+    if (isNaN(amount)) {
+        return ''; // must return a string otherwise colunify through a "Cannot read property 'trim' of undefined"
     }
 
     return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

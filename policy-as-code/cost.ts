@@ -43,7 +43,7 @@ export const costPolicies: Policies = [
             // Find _all_ instances
             const instances = args.resources.filter(it => isType(it.type, aws.ec2.Instance));
 
-            // Aggregate costs
+            // Aggregate instance type counts
             const resourceCounts = new Map<string, number>();
             instances.forEach(it => {
                 if (resourceCounts.get(it.props.instanceType) === undefined) {
@@ -54,6 +54,7 @@ export const costPolicies: Policies = [
                 resourceCounts.set(it.props.instanceType, resourceCount)
             });
 
+            // Aggregate costs
             const costItems: any[] = [];
             let totalCost = 0;
             resourceCounts.forEach((v, k) => {
