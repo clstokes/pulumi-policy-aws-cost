@@ -1,12 +1,12 @@
-import * as pulumi from "@pulumi/pulumi";
-import { ReportViolation, } from "@pulumi/policy";
+import * as policy from "@pulumi/policy";
+import * as aws from "@pulumi/aws";
+
 import * as fs from "fs";
 import * as zlib from "zlib";
-import * as path from "path";
 
 const memoize = require("fast-memoize");
 
-export const requireTags = function (tags: any, tagsToCheck: string[], reportViolation: ReportViolation) {
+export const requireTags = function (tags: any, tagsToCheck: string[], reportViolation: policy.ReportViolation) {
     for (let tagName of tagsToCheck) {
         if ((tags || {})[tagName] === undefined) {
             reportViolation(`Tag [${tagName}] must be defined.`);
@@ -62,7 +62,46 @@ const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number
 }
 
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
-export const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
+const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
+
+interface CostItems {
+    resource: string,
+    type?: string,
+    qty?: number,
+    unitCost?: number,
+    monthlyTotal: number,
+    isFinalTotal?: boolean,
+}
+
+export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]) {
+
+    // Find _all_ instances
+    const instances = resources.filter(it => isType(it.type, aws.ec2.Instance));
+
+    // Aggregate instance type counts
+    const resourceCounts = new Map<string, number>();
+    instances.forEach(it => {
+        if (resourceCounts.get(it.props.instanceType) === undefined) {
+            // initiate a preliminary cost of '0.0`
+            resourceCounts.set(it.props.instanceType, 0);
+        }
+        const resourceCount = resourceCounts.get(it.props.instanceType)! + 1;
+        resourceCounts.set(it.props.instanceType, resourceCount)
+    });
+
+    // Aggregate costs
+    const costItems: CostItems[] = [];
+    let totalCost = 0;
+    resourceCounts.forEach((v, k) => {
+        const price = fastGetMonthlyInstanceOnDemandPrice(k);
+        const totalMonthylResourceCost = v * price;
+        costItems.push({ resource: getPulumiType(aws.ec2.Instance), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost });
+        totalCost += totalMonthylResourceCost;
+    });
+    costItems.push({ resource: "TOTAL", monthlyTotal: totalCost, isFinalTotal: true });
+
+    return costItems;
+}
 
 export const formatAmount = function (amount: string | number): (string) {
     if (typeof amount == 'string') {
@@ -73,15 +112,8 @@ export const formatAmount = function (amount: string | number): (string) {
         return ''; // must return a string otherwise colunify through a "Cannot read property 'trim' of undefined"
     }
 
-    return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // 20.12345678 -> $20.12
 }
-
-export const writeFile = function (filePath: string, fileData: string) {
-    const absoluteFilePath = path.resolve(filePath);
-    pulumi.log.info(`Writing file to [${absoluteFilePath}]`);
-    fs.writeFileSync(absoluteFilePath, fileData);
-    return;
-};
 
 export const getPulumiType = function (resource: any): (string) {
     return (<any>resource)["__pulumiType"];
