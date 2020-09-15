@@ -27,35 +27,41 @@ run `make bootstrap` from the `policy-as-code` directory:
 1. Run a `pulumi up` using the `--policy-pack` argument:
 
     ```
-    % pulumi preview --policy-pack policy-as-code
-    Previewing update (dev):
-        Type                  Name                        Plan       Info
-    +   pulumi:pulumi:Stack   pulumi-policy-aws-cost-dev  create     1 error
-    +   ├─ aws:ec2:Vpc        demo                        create     
-    +   │  └─ aws:ec2:Subnet  demo                        create     
-    +   ├─ aws:s3:Bucket      demo                        create     
-    +   ├─ aws:ec2:Instance   demo-1                      create     
-    +   ├─ aws:ec2:Instance   demo-3                      create     
-    +   ├─ aws:ec2:Instance   demo-2                      create     
-    +   ├─ aws:ec2:Instance   demo-0                      create     
-    +   └─ aws:ec2:Instance   demo-4                      create     
-    
-    Diagnostics:
-    pulumi:pulumi:Stack (pulumi-policy-aws-cost-dev):
-        error: preview failed
+    pulumi-policy-aws-cost % pulumi preview --policy-pack policy-as-code 
+    Previewing update (cameron)
+
+    View Live: https://app.pulumi.com/clstokes/pulumi-policy-aws-cost/cameron/previews/e53e358c-1e51-42ce-bed1-9fd5146bf98f
+
+        Type                            Name                            Plan       
+    +   pulumi:pulumi:Stack             pulumi-policy-aws-cost-cameron  create     
+    +   ├─ aws:ec2:Vpc                  demo                            create     
+    +   │  └─ aws:ec2:Subnet            demo                            create     
+    +   ├─ aws:ec2:Eip                  demo                            create     
+    +   ├─ aws:s3:Bucket                demo                            create     
+    +   ├─ aws:ec2:NatGateway           demo                            create     
+    +   ├─ aws:ec2:Instance             expensive-server                create     
+    +   ├─ aws:ec2:LaunchTemplate       launchTemplate                  create     
+    +   ├─ aws:ec2:Instance             demo-0                          create     
+    +   ├─ aws:ec2:LaunchConfiguration  launchConfig                    create     
+    +   ├─ aws:ec2:Instance             demo-2                          create     
+    +   ├─ aws:ec2:Instance             demo-1                          create     
+    +   ├─ aws:autoscaling:Group        launchTemplate                  create     
+    +   └─ aws:autoscaling:Group        launchConfig                    create     
     
     Policy Violations:
-        [mandatory]  aws-policies v0.0.1  instance-cost-estimate (pulumi-policy-aws-cost-dev: pulumi:pulumi:Stack)
+        [advisory]  cost-optimization v0.1.20200903-2  aggregate-instance-cost-estimate (pulumi-policy-aws-cost-cameron: pulumi:pulumi:Stack)
+        Estimated instance costs based on instance type.
+        
+        RESOURCE                       TYPE              QTY          PRICE   MONTHLY COST
+        aws:ec2/instance:Instance      i3.16xlarge         1      $3,594.24      $3,594.24
+        aws:ec2/instance:Instance      m5d.xlarge          3        $162.72        $488.16
+        aws:autoscaling/group:Group    t3.2xlarge          5        $239.62      $1,198.08
+        aws:ec2/natGateway:NatGateway                      1         $32.40         $32.40
+        TOTAL                                                                    $5,312.88
+        
+        [advisory]  cost-optimization v0.1.20200903-2  budget-limit (pulumi-policy-aws-cost-cameron: pulumi:pulumi:Stack)
         Estimated costs must not exceed monthly budget.
-        Estimated monthly cost [$813.60] exceeds [$500.00].
+        Estimated monthly cost [$5,312.88] exceeds [$50.00].
         
-        [mandatory]  aws-policies v0.0.1  s3-bucket-public-read-prohibited (demo: aws:s3/bucket:Bucket)
-        S3 bucket must not be publicly accessible.
-        Bucket ACL must not be set to 'public-read' or 'public-read-write'.
-        
-        [mandatory]  aws-policies v0.0.1  s3-static-website-prohibited (demo: aws:s3/bucket:Bucket)
-        No static website hosting.
-        Website hosting must not be enabled.
-        
-    Permalink: https://app.pulumi.com/clstokes/pulumi-policy-aws-cost/dev/previews/9a918b65-c618-4868-b02e-5e36dc7b1562
+    % 
     ```
