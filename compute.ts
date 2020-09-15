@@ -27,6 +27,14 @@ export const subnet = new aws.ec2.Subnet("demo", {
     },
 }, { parent: vpc, });
 
+const eip = new aws.ec2.Eip("demo", {
+    vpc: true,
+});
+const natGateway = new aws.ec2.NatGateway("demo", {
+    subnetId: subnet.id,
+    allocationId: eip.allocationId,
+});
+
 /**
  * Instances
  */

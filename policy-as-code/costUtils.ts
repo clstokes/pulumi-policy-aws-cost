@@ -11,7 +11,7 @@ const memoize = require("fast-memoize");
 /**
  * Cost-related helpers
  */
-const getPricingData = function (): (any) {
+const getPricingData = function (): any {
     const localFilePath = "./resources/offers-ec2-us-east-1.json.gz";
     if (!fs.existsSync(localFilePath)) {
         console.log("Local pricing file is missing - run `make bootstrap` and try again. Exiting...");
@@ -37,8 +37,33 @@ const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number
     if (skus.length > 1) {
         console.log("Shouldn't find more than one sku. Continuing with first...");
     }
-    const sku = skus[0]["sku"];
 
+    const sku = skus[0]["sku"];
+    const hourlyPrice = getHourlyOnDemandPrice(pricingDataTermsOnDemand, sku);
+    return getMonthlyCost(hourlyPrice);
+}
+
+const getMonthlyNatGatewayOnDemandPrice = function (): (number) {
+    const pricingData: any = getPricingData();
+    const pricingDataProducts: any = pricingData["products"];
+    const pricingDataTermsOnDemand: any = pricingData["terms"]["OnDemand"];
+
+    const arrValues = Array.from(Object.values(pricingDataProducts));
+    const skus: any[] = arrValues.filter((it: any) =>
+        it["attributes"]["group"] === "NGW:NatGateway"
+        && it["attributes"]["operation"] === "NatGateway"
+        && it["attributes"]["usagetype"].endsWith("NatGateway-Hours") // prefixed with region abbreviation on some regions
+    );
+    if (skus.length > 1) {
+        console.log("Shouldn't find more than one sku. Continuing with first...");
+    }
+
+    const sku = skus[0]["sku"];
+    const hourlyPrice = getHourlyOnDemandPrice(pricingDataTermsOnDemand, sku);
+    return getMonthlyCost(hourlyPrice);
+}
+
+const getHourlyOnDemandPrice = function (pricingDataTermsOnDemand: any, sku: string): (number) {
     const skuCode = `${sku}.JRTCKXETXF`; // JRTCKXETXF = On demand offer term code
     const skuPricing: any = pricingDataTermsOnDemand[sku][skuCode];
 
@@ -46,9 +71,12 @@ const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number
     const priceDimension: any = skuPricing["priceDimensions"][priceRateCode];
 
     const pricePerHour = Number(priceDimension["pricePerUnit"]["USD"]);
-    const costPerMonth = pricePerHour * 24 * 30;
 
-    return costPerMonth;
+    return pricePerHour;
+}
+
+const getMonthlyCost = function (pricePerHour: number): number {
+    return pricePerHour * 24 * 30;
 }
 
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
@@ -63,8 +91,7 @@ interface CostItems {
     isFinalTotal?: boolean,
 }
 
-export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]) {
-
+export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     const costItems: CostItems[] = [];
 
     // Find _all_ instances
@@ -74,6 +101,10 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     // Find _all_ Auto Scaling Groups
     const asgCostData = calculateAsgCosts(resources);
     costItems.push(...asgCostData);
+
+    // Find _all_ NAT Gateways
+    const natGatewayCostData = calculateNatGatewayCosts(resources);
+    costItems.push(...natGatewayCostData);
 
     // Sum each monthlyTotal to get TOTAL monthly cost.
     let totalCost = 0;
@@ -85,9 +116,10 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     return costItems;
 }
 
-const calculateInstanceCosts = function (resources: policy.PolicyResource[]) {
+const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     // Find _all_ instances
     const instances = resources.filter(it => isType(it.type, aws.ec2.Instance));
+    if (!instances.length) { return [] };
 
     // Aggregate instance type counts
     const resourceCounts = new Map<string, number>();
@@ -111,10 +143,22 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]) {
     return costItems;
 }
 
-const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
+const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): CostItems[] {
+    // Find _all_ instances
+    const natGateways = resources.filter(it => isType(it.type, aws.ec2.NatGateway));
+    if (!natGateways.length) { return [] };
 
+    const price = getMonthlyNatGatewayOnDemandPrice();
+    const v = natGateways.length; // v to be consistent with other similar methods
+    const totalMonthylResourceCost = natGateways.length * price;
+
+    return [{ resource: getPulumiType(aws.ec2.NatGateway), qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost }];
+}
+
+const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
     // Find _all_ autoscaling groups
     const asgs = resources.filter(it => isType(it.type, aws.autoscaling.Group));
+    if (!asgs.length) { return [] };
 
     // Aggregate instance type counts
     const resourceCounts = new Map<string, number>();
