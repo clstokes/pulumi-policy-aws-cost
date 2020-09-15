@@ -7,7 +7,7 @@ practices. _Note: The `instance-cost-estimate` policy currently only uses pricin
 ## Usage
 
 1. This example uses the [Bulk AWS Price List API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-ppslong.html) 
-for pricing data. The policy uses a file thats committed to this repo. To update the pricing data for 
+for pricing data. The policy uses a file that is committed to this repo. To update the pricing data for 
 run `make bootstrap` from the `policy-as-code` directory:
 
     ```
@@ -62,6 +62,5 @@ run `make bootstrap` from the `policy-as-code` directory:
         [advisory]  cost-optimization v0.1.20200903-2  budget-limit (pulumi-policy-aws-cost-cameron: pulumi:pulumi:Stack)
         Estimated costs must not exceed monthly budget.
         Estimated monthly cost [$5,312.88] exceeds [$50.00].
-        
-    % 
+
     ```
