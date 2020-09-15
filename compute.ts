@@ -54,3 +54,33 @@ const instance = new aws.ec2.Instance(`expensive-server`, {
         ...BASE_TAGS,
     },
 });
+
+/**
+ * Autoscaling Group
+ */
+const launchArgs = {
+    imageId: amiId,
+    instanceType: aws.ec2.InstanceTypes.T3_2XLarge,
+}
+
+const launchConfig = new aws.ec2.LaunchConfiguration("launchConfig", {
+    ...launchArgs,
+});
+
+const asgByLaunchConfig = new aws.autoscaling.Group("launchConfig", {
+    launchConfiguration: launchConfig.name,
+    minSize: 1,
+    maxSize: 10,
+});
+
+const launchTemplate = new aws.ec2.LaunchTemplate("launchTemplate", {
+    ...launchArgs,
+});
+
+const asgByLaunchTemplate = new aws.autoscaling.Group("launchTemplate", {
+    launchTemplate: {
+        name: launchTemplate.name
+    },
+    minSize: 4,
+    maxSize: 10,
+});

@@ -1,8 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aws from "@pulumi/aws";
 import { Policies, } from "@pulumi/policy";
 
-import { isType, calculateEstimatedCosts, formatAmount, } from "./utils";
+import { calculateEstimatedCosts, formatAmount, } from "./costUtils";
 
 export const costPolicies: Policies = [
     {
@@ -20,7 +19,10 @@ export const costPolicies: Policies = [
         validateStack: (args, reportViolation) => {
             const { maxMonthlyCost } = args.getConfig<{ maxMonthlyCost: number }>();
 
+            // get all estimated cost data
             const costItems = calculateEstimatedCosts(args.resources);
+
+            // get MONTHLY COST total
             const totalMonthlyCostItem = costItems.find(it => it.isFinalTotal)!;
             const totalMonthlyCost = totalMonthlyCostItem?.monthlyTotal;
 
@@ -35,6 +37,7 @@ export const costPolicies: Policies = [
         enforcementLevel: "advisory",
         validateStack: (args, reportViolation) => {
 
+            // get all estimated cost data
             const costItems = calculateEstimatedCosts(args.resources);
 
             const columnify = require('columnify');
