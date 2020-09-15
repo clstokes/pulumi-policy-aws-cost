@@ -1,36 +1,79 @@
-import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 import { Policies, } from "@pulumi/policy";
 
-import { isType, getMonthlyOnDemandPrice, formatAmount, } from "./utils";
+import { calculateEstimatedCosts, formatAmount, } from "./costUtils";
 
 export const costPolicies: Policies = [
     {
-        name: "instance-cost-estimate",
+        name: "budget-limit",
         description: `Estimated costs must not exceed monthly budget.`,
-        enforcementLevel: "mandatory",
+        enforcementLevel: "advisory",
         configSchema: {
             properties: {
                 maxMonthlyCost: {
                     type: "number",
-                    default: 500.0,
+                    default: 50.0,
                 },
             },
         },
         validateStack: (args, reportViolation) => {
             const { maxMonthlyCost } = args.getConfig<{ maxMonthlyCost: number }>();
 
-            // Find _all_ instances
-            const instances = args.resources.filter(it => isType(it.type, aws.ec2.Instance));
+            // get all estimated cost data
+            const costItems = calculateEstimatedCosts(args.resources);
 
-            // Aggregate costs
-            let totalMonthlyAmount = 0;
-            instances.forEach(it => {
-                totalMonthlyAmount += getMonthlyOnDemandPrice(it.props.instanceType);
-            });
+            // get MONTHLY COST total
+            const totalMonthlyCostItem = costItems.find(it => it.isFinalTotal)!;
+            const totalMonthlyCost = totalMonthlyCostItem?.monthlyTotal;
 
-            if (totalMonthlyAmount > maxMonthlyCost) {
-                reportViolation(`Estimated monthly cost [${formatAmount(totalMonthlyAmount)}] exceeds [${formatAmount(maxMonthlyCost)}].`);
+            if (totalMonthlyCost > maxMonthlyCost) {
+                reportViolation(`Estimated monthly cost [${formatAmount(totalMonthlyCost)}] exceeds [${formatAmount(maxMonthlyCost)}].`);
             }
         },
     },
+    {
+        name: "aggregate-instance-cost-estimate",
+        description: `Estimated instance costs based on instance type.`,
+        enforcementLevel: "advisory",
+        validateStack: (args, reportViolation) => {
+
+            // get all estimated cost data
+            const costItems = calculateEstimatedCosts(args.resources);
+
+            const columnify = require('columnify');
+            const outputData = columnify(costItems, columnifyConfig);
+            reportViolation('\n' + outputData);
+
+            // writeFile(`${require("os").homedir}/Desktop/cost-${new Date().toISOString()}.json`, JSON.stringify(costItems));
+        },
+    },
 ];
+
+const columnifyConfig = {
+    columns: ["resource", "type", "qty", "unitCost", "monthlyTotal",],
+    config: {
+        resource: { minWidth: 30, },
+        type: { minWidth: 15, },
+        qty: { minWidth: 5, align: 'right', },
+        unitCost: {
+            minWidth: 14,
+            align: 'right',
+            dataTransform: formatAmount,
+            headingTransform: () => { return "PRICE" },
+        },
+        monthlyTotal: {
+            minWidth: 14,
+            align: 'right',
+            dataTransform: formatAmount,
+            headingTransform: () => { return "MONTHLY COST" },
+        },
+    }
+};
+
+export const writeFile = function (filePath: string, fileData: string) {
+    // do inline requires here to not "pollute" the file when this is rarely used
+    const absoluteFilePath = require("path").resolve(filePath);
+    pulumi.log.info(`Writing file to [${absoluteFilePath}]`);
+    require("fs").writeFileSync(absoluteFilePath, fileData);
+    return;
+};
