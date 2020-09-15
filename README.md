@@ -27,7 +27,7 @@ run `make bootstrap` from the `policy-as-code` directory:
 1. Run a `pulumi up` using the `--policy-pack` argument:
 
     ```
-    pulumi-policy-aws-cost % pulumi preview --policy-pack policy-as-code 
+    % pulumi preview --policy-pack policy-as-code 
     Previewing update (cameron)
 
     View Live: https://app.pulumi.com/clstokes/pulumi-policy-aws-cost/cameron/previews/e53e358c-1e51-42ce-bed1-9fd5146bf98f
