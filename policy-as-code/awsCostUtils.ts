@@ -1,7 +1,7 @@
 import * as policy from "@pulumi/policy";
 import * as aws from "@pulumi/aws";
 
-import { isType, getPulumiType, } from "./utils";
+import { isType, getPulumiType, getMonthlyCost, CostItems, } from "./utils";
 
 import * as fs from "fs";
 import * as zlib from "zlib";
@@ -12,10 +12,9 @@ const memoize = require("fast-memoize");
  * Cost-related helpers
  */
 const getPricingData = function (): any {
-    const localFilePath = "./resources/offers-ec2-us-east-1.json.gz";
+    const localFilePath = "./resources/aws/offers-ec2-us-east-1.json.gz";
     if (!fs.existsSync(localFilePath)) {
-        console.log("Local pricing file is missing - run `make bootstrap` and try again. Exiting...");
-        throw new Error();
+        throw new Error(`Unable to load local pricing file [${localFilePath}]`);
     }
     const localPricingDataGz = fs.readFileSync(localFilePath);
     const localPricingData = zlib.gunzipSync(localPricingDataGz);
@@ -75,21 +74,8 @@ const getHourlyOnDemandPrice = function (pricingDataTermsOnDemand: any, sku: str
     return pricePerHour;
 }
 
-const getMonthlyCost = function (pricePerHour: number): number {
-    return pricePerHour * 24 * 30;
-}
-
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
 const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
-
-interface CostItems {
-    resource: string,
-    type?: string,
-    qty?: number,
-    unitCost?: number,
-    monthlyTotal: number,
-    isFinalTotal?: boolean,
-}
 
 export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     const costItems: CostItems[] = [];
@@ -105,6 +91,10 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     // Find _all_ NAT Gateways
     const natGatewayCostData = calculateNatGatewayCosts(resources);
     costItems.push(...natGatewayCostData);
+
+    if (costItems?.length === 0) {
+        return [];
+    }
 
     // Sum each monthlyTotal to get TOTAL monthly cost.
     let totalCost = 0;
@@ -191,17 +181,4 @@ const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
     });
 
     return costItems;
-
-}
-
-export const formatAmount = function (amount: string | number): (string) {
-    if (typeof amount == 'string') {
-        amount = parseFloat(amount);
-    }
-
-    if (isNaN(amount)) {
-        return ''; // must return a string otherwise colunify through a "Cannot read property 'trim' of undefined"
-    }
-
-    return '$' + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // 20.12345678 -> $20.12
-}
+};

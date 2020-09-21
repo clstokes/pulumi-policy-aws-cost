@@ -1,7 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import { Policies, } from "@pulumi/policy";
 
-import { calculateEstimatedCosts, formatAmount, } from "./costUtils";
+import { columnifyConfig, formatAmount, writeFile, } from "./utils";
+import { calculateEstimatedCosts, } from "./gcpCostUtils";
 
 export const costPolicies: Policies = [
     {
@@ -39,6 +40,9 @@ export const costPolicies: Policies = [
 
             // get all estimated cost data
             const costItems = calculateEstimatedCosts(args.resources);
+            if (!costItems) {
+                return;
+            }
 
             const columnify = require('columnify');
             const outputData = columnify(costItems, columnifyConfig);
@@ -48,32 +52,3 @@ export const costPolicies: Policies = [
         },
     },
 ];
-
-const columnifyConfig = {
-    columns: ["resource", "type", "qty", "unitCost", "monthlyTotal",],
-    config: {
-        resource: { minWidth: 30, },
-        type: { minWidth: 15, },
-        qty: { minWidth: 5, align: 'right', },
-        unitCost: {
-            minWidth: 14,
-            align: 'right',
-            dataTransform: formatAmount,
-            headingTransform: () => { return "PRICE" },
-        },
-        monthlyTotal: {
-            minWidth: 14,
-            align: 'right',
-            dataTransform: formatAmount,
-            headingTransform: () => { return "MONTHLY COST" },
-        },
-    }
-};
-
-export const writeFile = function (filePath: string, fileData: string) {
-    // do inline requires here to not "pollute" the file when this is rarely used
-    const absoluteFilePath = require("path").resolve(filePath);
-    pulumi.log.info(`Writing file to [${absoluteFilePath}]`);
-    require("fs").writeFileSync(absoluteFilePath, fileData);
-    return;
-};

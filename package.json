@@ -6,6 +6,7 @@
     "dependencies": {
         "@pulumi/aws": "latest",
         "@pulumi/awsx": "latest",
+        "@pulumi/gcp": "^3.24.0",
         "@pulumi/pulumi": "latest",
         "@types/columnify": "^1.5.0"
     }
