@@ -1,3 +1,4 @@
+import * as pulumi from "@pulumi/pulumi";
 import * as policy from "@pulumi/policy";
 import * as gcp from "@pulumi/gcp";
 
@@ -27,17 +28,22 @@ const getPricingData = function (): any[] {
 
 const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number) {
     const instanceComponents = instanceType.match(/([a-z0-9]+)-([a-z]+)-([0-9]+)/); // "n1-standard-1" = [n1-standard-1,n1,standard,1]
+    const instanceSkuDescription = getInstanceSkuDescription(instanceComponents![1]);
 
     const pricingData: any = getPricingData();
     const skus: any[] = pricingData.filter((it: any) =>
-        it["Product taxonomy"] === "GCP > Compute > GCE > VMs On Demand > Cores: Per Core"
-        && it["Unit description"] === "hour"
-        && it["SKU description"] === `${instanceComponents![1].toUpperCase()} Predefined Instance Core running in Americas`
+        it["Unit description"] === "hour"
+        && it["Product taxonomy"] === "GCP > Compute > GCE > VMs On Demand > Cores: Per Core"
+        && it["SKU description"] === instanceSkuDescription
     );
 
     // TODO: Aggregate costs for `N1 Predefined Instance Ram running in Americas`
 
-    if (skus.length > 1) {
+    if (skus.length === 0) {
+        pulumi.log.info(`Unable to determine sku for [${instanceType}]`);
+        return 0;
+    }
+    else if (skus.length > 1) {
         console.log("Shouldn't find more than one sku. Continuing with first...");
     }
 
@@ -45,6 +51,23 @@ const getMonthlyInstanceOnDemandPrice = function (instanceType: string): (number
     const hourlyPricePerCore = sku["List price ($)"];
     const hourlyPrice = hourlyPricePerCore * parseInt(instanceComponents![3]);
     return getMonthlyCost(hourlyPrice);
+}
+
+const getInstanceSkuDescription = function (instanceFamily: string): (string | undefined) {
+    const skuMapping = new Map<string, any>();
+    skuMapping.set("c2", () => `Compute optimized Core running in Americas`);
+    skuMapping.set("e2", (family: string) => `${family.toUpperCase()} Instance Core running in Americas`);
+    skuMapping.set("m1", () => `Memory-optimized Instance Core running in Americas`);
+    skuMapping.set("n1", (family: string) => `${family.toUpperCase()} Predefined Instance Core running in Americas`);
+    skuMapping.set("n2", (family: string) => `${family.toUpperCase()} Custom Instance Core running in Americas`);
+    skuMapping.set("n2d", (family: string) => `${family.toUpperCase()} AMD Instance Core running in Americas`);
+
+    const skuDescriptionFn = skuMapping.get(instanceFamily);
+    if (skuDescriptionFn === undefined) {
+        return undefined;
+    }
+    const skuDescription = skuDescriptionFn(instanceFamily);
+    return skuDescription;
 }
 
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
@@ -106,17 +129,6 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
     return costItems;
 }
 
-// const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): CostItems[] {
-//     // Find _all_ instances
-//     const natGateways = resources.filter(it => isType(it.type, aws.ec2.NatGateway));
-//     if (!natGateways.length) { return [] };
-
-//     const price = getMonthlyNatGatewayOnDemandPrice();
-//     const v = natGateways.length; // v to be consistent with other similar methods
-//     const totalMonthylResourceCost = natGateways.length * price;
-
-//     return [{ resource: getPulumiType(aws.ec2.NatGateway), qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost }];
-// }
 
 // const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
 //     // Find _all_ autoscaling groups
