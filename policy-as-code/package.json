@@ -1,6 +1,6 @@
 {
-    "name": "aws-cost-20200817",
-    "version": "0.1.20200903-2",
+    "name": "cost-optimization",
+    "version": "0.1.20200917-1",
     "dependencies": {
         "@pulumi/aws": "^2.0.0",
         "@pulumi/gcp": "^3.24.0",
