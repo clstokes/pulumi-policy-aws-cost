@@ -6,7 +6,7 @@ import { calculateEstimatedCosts, } from "./gcpCostUtils";
 
 export const costPolicies: Policies = [
     {
-        name: "budget-limit",
+        name: "gcp-budget-limit",
         description: `Estimated costs must not exceed monthly budget.`,
         enforcementLevel: "advisory",
         configSchema: {
@@ -33,14 +33,14 @@ export const costPolicies: Policies = [
         },
     },
     {
-        name: "aggregate-instance-cost-estimate",
-        description: `Estimated instance costs based on instance type.`,
+        name: "gcp-cost-estimate",
+        description: `Estimated monthly costs.`,
         enforcementLevel: "advisory",
         validateStack: (args, reportViolation) => {
 
             // get all estimated cost data
             const costItems = calculateEstimatedCosts(args.resources);
-            if (!costItems) {
+            if (costItems.length === 0) {
                 return;
             }
 

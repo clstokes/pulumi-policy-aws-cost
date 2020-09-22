@@ -1,7 +1,7 @@
 import { PolicyPack, } from "@pulumi/policy";
 
-import { costPolicies as gcpCostPolicies } from "./gcp";
-import { costPolicies as awsCostPolicies } from "./aws";
+import { costPolicies as awsCostPolicies } from "./awsPolicies";
+import { costPolicies as gcpCostPolicies } from "./gcpPolicies";
 
 new PolicyPack("cost-optimization", {
     policies: [

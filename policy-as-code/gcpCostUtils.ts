@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as policy from "@pulumi/policy";
 import * as gcp from "@pulumi/gcp";
 
-import { isType, getPulumiType, getMonthlyCost, CostItems, } from "./utils";
+import { getPulumiType, getMonthlyCost, CostItems, } from "./utils";
 
 import * as fs from "fs";
 const parse = require('csv-parse/lib/sync')
@@ -80,14 +80,6 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     const instanceCostData = calculateInstanceCosts(resources);
     costItems.push(...instanceCostData);
 
-    // // Find _all_ Auto Scaling Groups
-    // const asgCostData = calculateAsgCosts(resources);
-    // costItems.push(...asgCostData);
-
-    // // Find _all_ NAT Gateways
-    // const natGatewayCostData = calculateNatGatewayCosts(resources);
-    // costItems.push(...natGatewayCostData);
-
     if (costItems?.length === 0) {
         return [];
     }
@@ -104,18 +96,19 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
 
 const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     // Find _all_ instances
-    const instances = resources.filter(it => isType(it.type, gcp.compute.Instance));
+    const instances = resources.map(r => r.asType(gcp.compute.Instance)).filter(b => b);
     if (!instances.length) { return [] };
 
     // Aggregate instance type counts
     const resourceCounts = new Map<string, number>();
     instances.forEach(it => {
-        if (resourceCounts.get(it.props.machineType) === undefined) {
-            // initiate a preliminary cost of '0.0`
-            resourceCounts.set(it.props.machineType, 0);
+        const machineType = it!.machineType;
+        if (resourceCounts.get(machineType) === undefined) {
+            // initialize a preliminary cost of '0.0`
+            resourceCounts.set(machineType, 0);
         }
-        const resourceCount = resourceCounts.get(it.props.machineType)! + 1;
-        resourceCounts.set(it.props.machineType, resourceCount)
+        const resourceCount = resourceCounts.get(machineType)! + 1;
+        resourceCounts.set(machineType, resourceCount)
     });
 
     // Aggregate costs
@@ -128,42 +121,3 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
 
     return costItems;
 }
-
-
-// const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
-//     // Find _all_ autoscaling groups
-//     const asgs = resources.filter(it => isType(it.type, aws.autoscaling.Group));
-//     if (!asgs.length) { return [] };
-
-//     // Aggregate instance type counts
-//     const resourceCounts = new Map<string, number>();
-//     asgs.forEach(it => {
-//         let instanceType = undefined;
-//         if (it.props.launchConfiguration !== undefined) {
-//             const launchConfiguration = resources.find(res => isType(res.type, aws.ec2.LaunchConfiguration) && res.props.name === it.props.launchConfiguration);
-//             instanceType = launchConfiguration?.props.instanceType;
-
-//         } else if (it.props.launchTemplate !== undefined) {
-//             const launchTemplate = resources.find(res => isType(res.type, aws.ec2.LaunchTemplate) && res.props.name === it.props.launchTemplate.name);
-//             instanceType = launchTemplate?.props.instanceType;
-//         }
-
-//         if (resourceCounts.get(instanceType) === undefined) {
-//             // initiate a preliminary cost of '0.0`
-//             resourceCounts.set(instanceType, 0);
-//         }
-
-//         const resourceCount = resourceCounts.get(instanceType)! + it.props.minSize;
-//         resourceCounts.set(instanceType, resourceCount);
-//     });
-
-//     // Aggregate costs
-//     const costItems: CostItems[] = [];
-//     resourceCounts.forEach((v, k) => {
-//         const price = fastGetMonthlyInstanceOnDemandPrice(k);
-//         const totalMonthylResourceCost = v * price;
-//         costItems.push({ resource: getPulumiType(aws.autoscaling.Group), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost });
-//     });
-
-//     return costItems;
-// };

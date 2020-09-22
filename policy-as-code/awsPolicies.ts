@@ -6,7 +6,7 @@ import { calculateEstimatedCosts, } from "./awsCostUtils";
 
 export const costPolicies: Policies = [
     {
-        name: "budget-limit",
+        name: "aws-budget-limit",
         description: `Estimated costs must not exceed monthly budget.`,
         enforcementLevel: "advisory",
         configSchema: {
@@ -33,14 +33,14 @@ export const costPolicies: Policies = [
         },
     },
     {
-        name: "aggregate-instance-cost-estimate",
-        description: `Estimated instance costs based on instance type.`,
+        name: "aws-cost-estimate",
+        description: `Estimated monthly costs.`,
         enforcementLevel: "advisory",
         validateStack: (args, reportViolation) => {
 
             // get all estimated cost data
             const costItems = calculateEstimatedCosts(args.resources);
-            if (costItems?.length === 0) {
+            if (costItems.length === 0) {
                 return;
             }
 

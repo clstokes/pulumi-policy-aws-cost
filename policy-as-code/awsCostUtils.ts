@@ -108,18 +108,19 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
 
 const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     // Find _all_ instances
-    const instances = resources.filter(it => isType(it.type, aws.ec2.Instance));
+    const instances = resources.map(r => r.asType(aws.ec2.Instance)).filter(b => b);
     if (!instances.length) { return [] };
 
     // Aggregate instance type counts
     const resourceCounts = new Map<string, number>();
     instances.forEach(it => {
-        if (resourceCounts.get(it.props.instanceType) === undefined) {
-            // initiate a preliminary cost of '0.0`
-            resourceCounts.set(it.props.instanceType, 0);
+        const instanceType = it!.instanceType;
+        if (resourceCounts.get(instanceType) === undefined) {
+            // initialize a preliminary cost of '0.0`
+            resourceCounts.set(instanceType, 0);
         }
-        const resourceCount = resourceCounts.get(it.props.instanceType)! + 1;
-        resourceCounts.set(it.props.instanceType, resourceCount)
+        const resourceCount = resourceCounts.get(instanceType)! + 1;
+        resourceCounts.set(instanceType, resourceCount)
     });
 
     // Aggregate costs
@@ -135,7 +136,7 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
 
 const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): CostItems[] {
     // Find _all_ instances
-    const natGateways = resources.filter(it => isType(it.type, aws.ec2.NatGateway));
+    const natGateways = resources.map(r => r.asType(aws.ec2.NatGateway)).filter(b => b);
     if (!natGateways.length) { return [] };
 
     const price = getMonthlyNatGatewayOnDemandPrice();
@@ -147,28 +148,28 @@ const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): 
 
 const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
     // Find _all_ autoscaling groups
-    const asgs = resources.filter(it => isType(it.type, aws.autoscaling.Group));
+    const asgs = resources.map(r => r.asType(aws.autoscaling.Group)).filter(b => b);
     if (!asgs.length) { return [] };
 
     // Aggregate instance type counts
     const resourceCounts = new Map<string, number>();
     asgs.forEach(it => {
         let instanceType = undefined;
-        if (it.props.launchConfiguration !== undefined) {
-            const launchConfiguration = resources.find(res => isType(res.type, aws.ec2.LaunchConfiguration) && res.props.name === it.props.launchConfiguration);
+        if (it?.launchConfiguration !== undefined) {
+            const launchConfiguration = resources.find(res => isType(res.type, aws.ec2.LaunchConfiguration) && res.props.name === it.launchConfiguration);
             instanceType = launchConfiguration?.props.instanceType;
 
-        } else if (it.props.launchTemplate !== undefined) {
-            const launchTemplate = resources.find(res => isType(res.type, aws.ec2.LaunchTemplate) && res.props.name === it.props.launchTemplate.name);
+        } else if (it?.launchTemplate !== undefined) {
+            const launchTemplate = resources.find(res => isType(res.type, aws.ec2.LaunchTemplate) && res.props.name === it!.launchTemplate!.name);
             instanceType = launchTemplate?.props.instanceType;
         }
 
         if (resourceCounts.get(instanceType) === undefined) {
-            // initiate a preliminary cost of '0.0`
+            // initialize a preliminary cost of '0.0`
             resourceCounts.set(instanceType, 0);
         }
 
-        const resourceCount = resourceCounts.get(instanceType)! + it.props.minSize;
+        const resourceCount = resourceCounts.get(instanceType)! + it!.minSize;
         resourceCounts.set(instanceType, resourceCount);
     });
 
