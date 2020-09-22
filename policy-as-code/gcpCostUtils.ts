@@ -6,7 +6,7 @@ import { getPulumiType, getMonthlyCost, CostItems, } from "./utils";
 
 import * as fs from "fs";
 const parse = require('csv-parse/lib/sync')
-// import * as zlib from "zlib";
+import * as zlib from "zlib";
 
 const memoize = require("fast-memoize");
 
@@ -14,12 +14,15 @@ const memoize = require("fast-memoize");
  * Cost-related helpers
  */
 const getPricingData = function (): any[] {
-    const localFilePath = "./resources/gcp/ondemand-pricing.csv";
+    const localFilePath = "./resources/gcp/ondemand-pricing.csv.gz";
     if (!fs.existsSync(localFilePath)) {
         throw new Error(`Unable to load local pricing file [${localFilePath}]`);
     }
 
-    const results: any[] = parse(fs.readFileSync(localFilePath), {
+    const localPricingDataGz = fs.readFileSync(localFilePath);
+    const localPricingData = zlib.gunzipSync(localPricingDataGz);
+
+    const results: any[] = parse(localPricingData, {
         columns: true,
         skip_empty_lines: true
     });
