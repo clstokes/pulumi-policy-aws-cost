@@ -83,6 +83,10 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     const instanceCostData = calculateInstanceCosts(resources);
     costItems.push(...instanceCostData);
 
+    // Find _all_ GKE clusters
+    const gkeNodeCostData = calculateGkeCosts(resources);
+    costItems.push(...gkeNodeCostData);
+
     if (costItems?.length === 0) {
         return [];
     }
@@ -121,6 +125,41 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
         const totalMonthlyResourceCost = v * price;
         costItems.push({ resource: getPulumiType(gcp.compute.Instance), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost });
     });
+
+    return costItems;
+}
+
+const calculateGkeCosts = function (resources: policy.PolicyResource[]): CostItem[] {
+    // Find _all_ instances
+    const instances = resources.map(r => r.asType(gcp.container.Cluster)).filter(b => b);
+    if (!instances.length) { return [] };
+
+    // node costs
+    const resourceCounts = new Map<string, number>();
+    instances.forEach(it => {
+        const machineType = it!.nodeConfig.machineType;
+        if (resourceCounts.get(machineType) === undefined) {
+            // initialize a preliminary cost of '0.0`
+            resourceCounts.set(machineType, 0);
+        }
+        const resourceCount = resourceCounts.get(machineType)! + (it!.initialNodeCount || 1);
+        resourceCounts.set(machineType, resourceCount)
+    });
+
+
+    // Aggregate costs
+    const costItems: CostItem[] = [];
+    resourceCounts.forEach((v, k) => {
+        const price = fastGetMonthlyInstanceOnDemandPrice(k);
+        const totalMonthlyResourceCost = v * price;
+        costItems.push({ resource: `${getPulumiType(gcp.container.Cluster)}#Nodes`, type: k, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost });
+    });
+
+    // cluster costs
+    if (instances.length > 0) {
+        const hourlyClusterPrice = 0.1;
+        costItems.push({ resource: `${getPulumiType(gcp.container.Cluster)}`, qty: instances.length, unitCost: hourlyClusterPrice, monthlyTotal: getMonthlyCost(hourlyClusterPrice) });
+    }
 
     return costItems;
 }
