@@ -45,25 +45,9 @@ const expensiveServer = new gcp.compute.Instance("expensive", {
     }],
 });
 
-const intanceTemplate = new gcp.compute.InstanceTemplate("ig", {
-    machineType: "n2-standard-48",
-    disks: [{
-        boot: true,
-        sourceImage: "ubuntu-os-cloud/ubuntu-1804-lts",
-    }],
-})
-
-const instanceGroup = new gcp.compute.InstanceGroupManager("ig", {
-    baseInstanceName: "ig",
-    versions: [
-        {
-            instanceTemplate: intanceTemplate.id,
-            targetSize: { fixed: 12 },
-        }
-    ],
-});
-
-// TODO do something different here
+/**
+ * Export resource ids
+ */
 export const resources = {
-    expens: expensiveServer,
-}
+    instanceIds: instances.map(it => it.id),
+};

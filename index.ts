@@ -1,5 +1,5 @@
-import * as awsResources from "./aws";
-import * as gcpResources from "./gcp";
+import * as aws from "./aws";
+import * as gcp from "./gcp";
 
-const awsVpcId = awsResources.vpcId;
-// const gcp = gcpResources.resources;
+const awsResources = aws.resources;
+const gcpResources = gcp.resources;

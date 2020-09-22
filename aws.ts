@@ -16,7 +16,6 @@ const vpc = new aws.ec2.Vpc("demo", {
         Name: "demo",
     },
 });
-export const vpcId = vpc.id;
 
 const subnet = new aws.ec2.Subnet("demo", {
     vpcId: vpc.id,
@@ -94,3 +93,10 @@ const asgByLaunchTemplate = new aws.autoscaling.Group("launchTemplate", {
     minSize: 4,
     maxSize: 10,
 });
+
+/**
+ * Export resource ids
+ */
+export const resources = {
+    instanceIds: instances.map(it => it.id),
+};

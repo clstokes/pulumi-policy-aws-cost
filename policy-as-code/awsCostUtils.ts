@@ -1,7 +1,7 @@
 import * as policy from "@pulumi/policy";
 import * as aws from "@pulumi/aws";
 
-import { isType, getPulumiType, getMonthlyCost, CostItems, } from "./utils";
+import { isType, getPulumiType, getMonthlyCost, CostItem, } from "./utils";
 
 import * as fs from "fs";
 import * as zlib from "zlib";
@@ -77,8 +77,8 @@ const getHourlyOnDemandPrice = function (pricingDataTermsOnDemand: any, sku: str
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
 const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
 
-export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItems[] {
-    const costItems: CostItems[] = [];
+export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItem[] {
+    const costItems: CostItem[] = [];
 
     // Find _all_ instances
     const instanceCostData = calculateInstanceCosts(resources);
@@ -106,7 +106,7 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     return costItems;
 }
 
-const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItems[] {
+const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItem[] {
     // Find _all_ instances
     const instances = resources.map(r => r.asType(aws.ec2.Instance)).filter(b => b);
     if (!instances.length) { return [] };
@@ -124,7 +124,7 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
     });
 
     // Aggregate costs
-    const costItems: CostItems[] = [];
+    const costItems: CostItem[] = [];
     resourceCounts.forEach((v, k) => {
         const price = fastGetMonthlyInstanceOnDemandPrice(k);
         const totalMonthylResourceCost = v * price;
@@ -134,7 +134,7 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
     return costItems;
 }
 
-const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): CostItems[] {
+const calculateNatGatewayCosts = function (resources: policy.PolicyResource[]): CostItem[] {
     // Find _all_ instances
     const natGateways = resources.map(r => r.asType(aws.ec2.NatGateway)).filter(b => b);
     if (!natGateways.length) { return [] };
@@ -174,11 +174,11 @@ const calculateAsgCosts = function (resources: policy.PolicyResource[]) {
     });
 
     // Aggregate costs
-    const costItems: CostItems[] = [];
+    const costItems: CostItem[] = [];
     resourceCounts.forEach((v, k) => {
         const price = fastGetMonthlyInstanceOnDemandPrice(k);
-        const totalMonthylResourceCost = v * price;
-        costItems.push({ resource: getPulumiType(aws.autoscaling.Group), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost });
+        const totalMonthlyResourceCost = v * price;
+        costItems.push({ resource: getPulumiType(aws.autoscaling.Group), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost });
     });
 
     return costItems;

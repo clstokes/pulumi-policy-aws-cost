@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as policy from "@pulumi/policy";
 import * as gcp from "@pulumi/gcp";
 
-import { getPulumiType, getMonthlyCost, CostItems, } from "./utils";
+import { getPulumiType, getMonthlyCost, CostItem, } from "./utils";
 
 import * as fs from "fs";
 const parse = require('csv-parse/lib/sync')
@@ -76,8 +76,8 @@ const getInstanceSkuDescription = function (instanceFamily: string): (string | u
 // speed things up - for 20 instances this reduces time from ~30s to ~10s
 const fastGetMonthlyInstanceOnDemandPrice = memoize(getMonthlyInstanceOnDemandPrice);
 
-export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItems[] {
-    const costItems: CostItems[] = [];
+export const calculateEstimatedCosts = function (resources: policy.PolicyResource[]): CostItem[] {
+    const costItems: CostItem[] = [];
 
     // Find _all_ instances
     const instanceCostData = calculateInstanceCosts(resources);
@@ -97,7 +97,7 @@ export const calculateEstimatedCosts = function (resources: policy.PolicyResourc
     return costItems;
 }
 
-const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItems[] {
+const calculateInstanceCosts = function (resources: policy.PolicyResource[]): CostItem[] {
     // Find _all_ instances
     const instances = resources.map(r => r.asType(gcp.compute.Instance)).filter(b => b);
     if (!instances.length) { return [] };
@@ -115,11 +115,11 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
     });
 
     // Aggregate costs
-    const costItems: CostItems[] = [];
+    const costItems: CostItem[] = [];
     resourceCounts.forEach((v, k) => {
         const price = fastGetMonthlyInstanceOnDemandPrice(k);
-        const totalMonthylResourceCost = v * price;
-        costItems.push({ resource: getPulumiType(gcp.compute.Instance), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthylResourceCost });
+        const totalMonthlyResourceCost = v * price;
+        costItems.push({ resource: getPulumiType(gcp.compute.Instance), type: k, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost });
     });
 
     return costItems;

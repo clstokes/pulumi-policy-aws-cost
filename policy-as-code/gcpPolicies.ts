@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { Policies, } from "@pulumi/policy";
 
-import { columnifyConfig, formatAmount, writeFile, } from "./utils";
+import { newColumnifyConfig, formatAmount, writeFile, } from "./utils";
 import { calculateEstimatedCosts, } from "./gcpCostUtils";
 
 export const costPolicies: Policies = [
@@ -45,7 +45,7 @@ export const costPolicies: Policies = [
             }
 
             const columnify = require('columnify');
-            const outputData = columnify(costItems, columnifyConfig);
+            const outputData = columnify(costItems, newColumnifyConfig());
             reportViolation('\n' + outputData);
 
             // writeFile(`${require("os").homedir}/Desktop/cost-${new Date().toISOString()}.json`, JSON.stringify(costItems));

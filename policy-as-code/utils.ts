@@ -17,7 +17,7 @@ export const getPulumiType = function (resource: any): (string) {
     return (<any>resource)["__pulumiType"];
 }
 
-export interface CostItems {
+export interface CostItem {
     resource: string,
     type?: string,
     qty?: number,
@@ -42,23 +42,29 @@ export const getMonthlyCost = function (pricePerHour: number): number {
     return pricePerHour * 24 * 30;
 }
 
-export const columnifyConfig = {
-    columns: ["resource", "type", "qty", "unitCost", "monthlyTotal",],
-    config: {
-        resource: { minWidth: 30, },
-        type: { minWidth: 15, },
-        qty: { minWidth: 5, align: 'right', },
-        unitCost: {
-            minWidth: 14,
-            align: 'right',
-            dataTransform: formatAmount,
-            headingTransform: () => { return "PRICE" },
-        },
-        monthlyTotal: {
-            minWidth: 14,
-            align: 'right',
-            dataTransform: formatAmount,
-            headingTransform: () => { return "MONTHLY COST" },
+/**
+ * Re-using a singleton Columnify config didn't work - it appeared the config would get "cleared" after each use.
+ * Instead instantiate a new one each time it's needed.
+ */
+export const newColumnifyConfig = function (): any {
+    return {
+        columns: ["resource", "type", "qty", "unitCost", "monthlyTotal",],
+        config: {
+            resource: { minWidth: 30, },
+            type: { minWidth: 15, },
+            qty: { minWidth: 5, align: 'right', },
+            unitCost: {
+                minWidth: 14,
+                align: 'right',
+                dataTransform: formatAmount,
+                headingTransform: () => { return "PRICE" },
+            },
+            monthlyTotal: {
+                minWidth: 14,
+                align: 'right',
+                dataTransform: formatAmount,
+                headingTransform: () => { return "MONTHLY COST" },
+            },
         },
     }
 };
