@@ -180,7 +180,7 @@ const calculateGkeCosts = function (resources: policy.PolicyResource[]): CostIte
             costItems.push(costFn(
                 `${getPulumiType(gcp.container.NodePool)}`,
                 it!.nodeConfig?.machineType || defaultMachineType,
-                it!.initialNodeCount || 1,
+                it!.initialNodeCount || it!.autoscaling?.minNodeCount || 1,
             ));
         });
 
