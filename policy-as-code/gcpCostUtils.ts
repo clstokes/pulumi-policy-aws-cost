@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as policy from "@pulumi/policy";
 import * as gcp from "@pulumi/gcp";
 
-import { getPulumiType, getMonthlyCost, CostItem, } from "./utils";
+import { getPulumiType, isType, getMonthlyCost, CostItem, } from "./utils";
 
 import * as fs from "fs";
 const parse = require('csv-parse/lib/sync')
@@ -130,36 +130,50 @@ const calculateInstanceCosts = function (resources: policy.PolicyResource[]): Co
 }
 
 const calculateGkeCosts = function (resources: policy.PolicyResource[]): CostItem[] {
-    // Find _all_ instances
-    const instances = resources.map(r => r.asType(gcp.container.Cluster)).filter(b => b);
-    if (!instances.length) { return [] };
-
-    // node costs
-    const resourceCounts = new Map<string, number>();
-    instances.forEach(it => {
-        const machineType = it!.nodeConfig.machineType;
-        if (resourceCounts.get(machineType) === undefined) {
-            // initialize a preliminary cost of '0.0`
-            resourceCounts.set(machineType, 0);
-        }
-        const resourceCount = resourceCounts.get(machineType)! + (it!.initialNodeCount || 1);
-        resourceCounts.set(machineType, resourceCount)
-    });
-
-
-    // Aggregate costs
     const costItems: CostItem[] = [];
-    resourceCounts.forEach((v, k) => {
-        const price = fastGetMonthlyInstanceOnDemandPrice(k);
+
+    const costFn = (resourceType: string, nodeType: string, v: number): CostItem => {
+        const price = fastGetMonthlyInstanceOnDemandPrice(nodeType);
         const totalMonthlyResourceCost = v * price;
-        costItems.push({ resource: `${getPulumiType(gcp.container.Cluster)}#Nodes`, type: k, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost });
+        const costItem = { resource: resourceType, type: nodeType, qty: v, unitCost: price, monthlyTotal: totalMonthlyResourceCost };
+        return costItem;
+    };
+
+    // gcp:container/cluster:Cluster
+    const clusters = resources
+        .filter(r => isType(r.type, gcp.container.Cluster));
+
+    const hourlyClusterPrice = 0.1; // TODO: Lookup from pricing data instead of hard-coding.
+    costItems.push({
+        resource: `${getPulumiType(gcp.container.Cluster)}`,
+        qty: clusters.length,
+        unitCost: hourlyClusterPrice,
+        monthlyTotal: getMonthlyCost(hourlyClusterPrice)
     });
 
-    // cluster costs
-    if (instances.length > 0) {
-        const hourlyClusterPrice = 0.1;
-        costItems.push({ resource: `${getPulumiType(gcp.container.Cluster)}`, qty: instances.length, unitCost: hourlyClusterPrice, monthlyTotal: getMonthlyCost(hourlyClusterPrice) });
-    }
+    // gcp:container/cluster:Cluster#Nodes
+    resources
+        .map(r => r.asType(gcp.container.Cluster))
+        .filter(i => i?.nodeConfig !== undefined)
+        .forEach(it => {
+            costItems.push(costFn(
+                `${getPulumiType(gcp.container.Cluster)}#Nodes`,
+                it!.nodeConfig.machineType,
+                it!.initialNodeCount || 1)
+            );
+        });
+
+    // gcp:container/nodePool:NodePool
+    resources
+        .map(r => r.asType(gcp.container.NodePool))
+        .filter(it => it?.nodeConfig !== undefined)
+        .forEach(it => {
+            costItems.push(costFn(
+                `${getPulumiType(gcp.container.NodePool)}`,
+                it!.nodeConfig!.machineType,
+                it!.initialNodeCount || 1)
+            );
+        });
 
     return costItems;
 }
