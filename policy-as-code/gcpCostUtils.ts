@@ -143,24 +143,33 @@ const calculateGkeCosts = function (resources: policy.PolicyResource[]): CostIte
     const clusters = resources
         .filter(r => isType(r.type, gcp.container.Cluster));
 
-    const hourlyClusterPrice = 0.1; // TODO: Lookup from pricing data instead of hard-coding.
-    costItems.push({
-        resource: `${getPulumiType(gcp.container.Cluster)}`,
-        qty: clusters.length,
-        unitCost: hourlyClusterPrice,
-        monthlyTotal: getMonthlyCost(hourlyClusterPrice)
-    });
+    if (clusters.length > 0) {
+        const hourlyClusterPrice = 0.1; // TODO: Lookup from pricing data instead of hard-coding.
+        costItems.push({
+            resource: `${getPulumiType(gcp.container.Cluster)}`,
+            qty: clusters.length,
+            unitCost: hourlyClusterPrice,
+            monthlyTotal: getMonthlyCost(hourlyClusterPrice)
+        });
+    }
+
+    // Actual default is `e2-medium`, but we modify it to `e2-medium-2` to simplify the code.
+    // per https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/NodeConfig
+    const defaultMachineType = "e2-medium-2";
 
     // gcp:container/cluster:Cluster#Nodes
     resources
         .map(r => r.asType(gcp.container.Cluster))
         .filter(i => i?.nodeConfig !== undefined)
         .forEach(it => {
+            if (it?.removeDefaultNodePool) {
+                return;
+            }
             costItems.push(costFn(
                 `${getPulumiType(gcp.container.Cluster)}#Nodes`,
-                it!.nodeConfig.machineType,
-                it!.initialNodeCount || 1)
-            );
+                it!.nodeConfig?.machineType || defaultMachineType,
+                it!.initialNodeCount || 1,
+            ));
         });
 
     // gcp:container/nodePool:NodePool
@@ -170,9 +179,9 @@ const calculateGkeCosts = function (resources: policy.PolicyResource[]): CostIte
         .forEach(it => {
             costItems.push(costFn(
                 `${getPulumiType(gcp.container.NodePool)}`,
-                it!.nodeConfig!.machineType,
-                it!.initialNodeCount || 1)
-            );
+                it!.nodeConfig?.machineType || defaultMachineType,
+                it!.initialNodeCount || 1,
+            ));
         });
 
     return costItems;
